@@ -239,10 +239,10 @@ app.post('/auth/register/google',async(req,res)=>{
     const token = jwt.sign({ id: newuser.id, role: newuser.role, email: newuser.email, name: newuser.name },JWT_SECRET,{ expiresIn: "7d" })
     const user = safeUser(newuser)
     return res.json({message:'Created user via Google!',token,user})
-  }catch(err){
-    res.json({message:"Error registering with google!"})
-  }
-})
+  }catch (err) {
+  console.error(err);
+  res.status(500).json({ message: "Error registering with google!" });
+}})
 
 // GET /me (optional, helpful)
 app.get("/me", authRequired, async (req, res) => {
