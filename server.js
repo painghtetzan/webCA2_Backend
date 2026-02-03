@@ -22,24 +22,8 @@ app.use(express.json());
 app.use(passport.initialize())
 app.use(
   cors({
-    origin: function (origin, cb) {
-      
-      if (!origin) return cb(null, true);
-
-      
-      const allowedOrigin = frontEndUrl
-      
-      
-      const isLocal = origin.startsWith("http://localhost:");
-      const isProduction = origin === allowedOrigin;
-
-      if (isLocal || isProduction) {
-        return cb(null, true);
-      }
-      
-      return cb(new Error("CORS blocked: " + origin));
-    },
-    credentials: true, 
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
@@ -133,7 +117,7 @@ app.post("/auth/register", async (req, res) => {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    // Check existing user
+    
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existing.length > 0) {
       return res.status(409).json({ message: "Email already registered" });
@@ -225,69 +209,24 @@ app.get(`/auth/google/register`, passport.authenticate('google', { session: fals
   }
 })
 
-app.post('/auth/register/google', async (req, res) => {
-  const { name, email, school, role } = req.body;
-
-  if (!email || !name || !school || !role) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  try {
-    
-    const [existing] = await pool.query(
-      'SELECT id, name, role, email FROM users WHERE email = ?',
-      [email]
-    );
-
-    if (existing.length > 0) {
-      const user = existing[0];
-      const token = jwt.sign(
-        { id: user.id, role: user.role, email: user.email, name: user.name },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-      return res.json({
-        message: 'Account already exists — signed in',
-        token,
-        user: safeUser(user)
-      });
-    }
-
-    
-    const [result] = await pool.query(
-      'INSERT INTO users (name, email, school, role) VALUES (?,?,?,?)',
-      [name, email, school, role]
-    );
-
-    const newUser = {
-      id: result.insertId,
+app.post('/auth/register/google',async(req,res)=>{
+  const {name,email,school,role} = req.body
+  try{
+    const [rows] =await pool.query('INSERT INTO users (name,email,school,role) VALUES (?,?,?,?)',[name,email,school,role])
+    const newuser =  {
+      id: rows.insertId, 
       name,
       email,
       school,
       role
     };
-
-    const token = jwt.sign(
-      { id: newUser.id, role: newUser.role, email: newUser.email, name: newUser.name },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      message: 'Created user via Google!',
-      token,
-      user: safeUser(newUser)
-    });
-  } catch (err) {
-    console.error('Google register error:', err);
-    
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: "This email is already registered" });
-    }
-    
-    res.status(500).json({ message: "Server error during registration" });
-  }
-});
+    const token = jwt.sign({ id: newuser.id, role: newuser.role, email: newuser.email, name: newuser.name },JWT_SECRET,{ expiresIn: "7d" })
+    const user = safeUser(newuser)
+    return res.json({message:'Created user via Google!',token,user})
+  }catch (err) {
+  console.error(err);
+  res.status(500).json({ message: "Error registering with google!" });
+}})
 
 // GET /me (optional, helpful)
 app.get("/me", authRequired, async (req, res) => {
