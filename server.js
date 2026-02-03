@@ -214,7 +214,7 @@ app.post('/auth/register/google',async(req,res)=>{
   try{
     const [rows] =await pool.query('INSERT INTO users (name,email,school,role) VALUES (?,?,?,?)',[name,email,school,role])
     const newuser =  {
-      id: rows.id, 
+      id: rows.insertId, 
       name,
       email,
       school,
